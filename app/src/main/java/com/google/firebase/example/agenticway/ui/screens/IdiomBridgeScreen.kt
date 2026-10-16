@@ -23,7 +23,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -94,6 +96,7 @@ fun IdiomBridgeScreen(
                 // Input Card (British Idiom)
                 InputIdiomCard(
                     inputText = uiState.britishIdiomInput,
+                    isLoading = uiState.isLoading,
                     onTextChanged = viewModel::onBritishIdiomChanged,
                     onTranslateClick = viewModel::onTranslateClicked,
                     modifier = Modifier
@@ -104,6 +107,8 @@ fun IdiomBridgeScreen(
                 // Output Card (Brazilian Idiom)
                 OutputIdiomCard(
                     outputText = uiState.brazilianIdiomOutput,
+                    isLoading = uiState.isLoading,
+                    errorMessage = uiState.errorMessage,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -156,7 +161,8 @@ fun InputIdiomCard(
     inputText: String,
     onTextChanged: (String) -> Unit,
     onTranslateClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isLoading: Boolean = false
 ) {
     Card(
         modifier = modifier,
@@ -188,6 +194,7 @@ fun InputIdiomCard(
                 BasicTextField(
                     value = inputText,
                     onValueChange = onTextChanged,
+                    enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth(),
                     textStyle = TextStyle(
                         fontSize = 24.sp,
@@ -212,6 +219,7 @@ fun InputIdiomCard(
             // Translate Action Button
             Button(
                 onClick = onTranslateClick,
+                enabled = !isLoading,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = TranslateButtonBackground,
@@ -230,7 +238,7 @@ fun InputIdiomCard(
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Text(
-                        text = "Translate",
+                        text = if (isLoading) "Translating..." else "Translate",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = TranslateButtonContent
@@ -251,12 +259,14 @@ fun InputIdiomCard(
 }
 
 /**
- * Lower Card showing the placeholder state or translated Brazilian Portuguese idiom.
+ * Lower Card showing the placeholder state, loading state, error message, or translated Brazilian Portuguese idiom.
  */
 @Composable
 fun OutputIdiomCard(
     outputText: String?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
+    errorMessage: String? = null
 ) {
     Card(
         modifier = modifier,
@@ -277,52 +287,88 @@ fun OutputIdiomCard(
                 textColor = BrazilianBadgeText
             )
 
-            // Center Content (Placeholder Empty State)
+            // Center Content (Loading, Error, Placeholder Empty State, or Result)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                if (outputText.isNullOrBlank()) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(EmptyStateCircleBackground),
-                            contentAlignment = Alignment.Center
+                when {
+                    isLoading -> {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_chat_bubble),
-                                contentDescription = null,
-                                tint = EmptyStateIconTint,
-                                modifier = Modifier.size(24.dp)
+                            CircularProgressIndicator(
+                                color = HeaderIconTint,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Finding the Brazilian equivalent...",
+                                fontSize = 16.sp,
+                                lineHeight = 23.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = TextSecondary,
+                                textAlign = TextAlign.Center
                             )
                         }
+                    }
 
-                        Spacer(modifier = Modifier.height(18.dp))
-
+                    !errorMessage.isNullOrBlank() -> {
                         Text(
-                            text = "You'll see the Brazilian version of\nthis idiom here",
+                            text = errorMessage,
                             fontSize = 16.sp,
                             lineHeight = 23.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = TextSecondary,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.widthIn(max = 260.dp)
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
-                } else {
-                    Text(
-                        text = outputText,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+
+                    outputText.isNullOrBlank() -> {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(EmptyStateCircleBackground),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_chat_bubble),
+                                    contentDescription = null,
+                                    tint = EmptyStateIconTint,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(18.dp))
+
+                            Text(
+                                text = "You'll see the Brazilian version of\nthis idiom here",
+                                fontSize = 16.sp,
+                                lineHeight = 23.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = TextSecondary,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.widthIn(max = 260.dp)
+                            )
+                        }
+                    }
+
+                    else -> {
+                        Text(
+                            text = outputText,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
         }
