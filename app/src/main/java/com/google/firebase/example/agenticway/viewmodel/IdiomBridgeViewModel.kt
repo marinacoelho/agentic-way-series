@@ -12,11 +12,45 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
+ * Supported languages/varieties for idiom translation.
+ */
+enum class IdiomLanguage(
+    val displayName: String,
+    val shortName: String,
+    val peopleName: String,
+    val flagEmoji: String
+) {
+    BRITISH_ENGLISH(
+        displayName = "British English",
+        shortName = "British",
+        peopleName = "Brits",
+        flagEmoji = "🇬🇧"
+    ),
+    BRAZILIAN_PORTUGUESE(
+        displayName = "Brazilian Portuguese",
+        shortName = "Brazilian",
+        peopleName = "Brazilians",
+        flagEmoji = "🇧🇷"
+    ),
+    CHILEAN_SPANISH(
+        displayName = "Chilean Spanish",
+        shortName = "Chilean",
+        peopleName = "Chileans",
+        flagEmoji = "🇨🇱"
+    );
+
+    val badgeLabel: String
+        get() = "${displayName.uppercase()} IDIOM"
+}
+
+/**
  * UI State for the Idiom Bridge screen.
  */
 data class IdiomBridgeUiState(
-    val britishIdiomInput: String = "",
-    val brazilianIdiomOutput: String? = null,
+    val fromLanguage: IdiomLanguage = IdiomLanguage.BRITISH_ENGLISH,
+    val toLanguage: IdiomLanguage = IdiomLanguage.BRAZILIAN_PORTUGUESE,
+    val idiomInput: String = "",
+    val idiomOutput: String? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null
 )
@@ -35,37 +69,89 @@ class IdiomBridgeViewModel : ViewModel() {
     }
 
     /**
-     * Updates the user's input text for the British idiom.
+     * Updates the user's input text for the source idiom.
      */
-    fun onBritishIdiomChanged(newText: String) {
-        _uiState.update { it.copy(britishIdiomInput = newText, errorMessage = null) }
+    fun onIdiomInputChanged(newText: String) {
+        _uiState.update { it.copy(idiomInput = newText, errorMessage = null) }
     }
 
     /**
-     * Translates the British idiom to its Brazilian equivalent.
+     * Updates the source ("from") language.
+     * Prevents "from" and "to" languages from being the same by swapping if necessary.
+     */
+    fun onFromLanguageSelected(newLanguage: IdiomLanguage) {
+        _uiState.update { currentState ->
+            if (currentState.fromLanguage == newLanguage) return@update currentState
+            val updatedToLanguage = if (newLanguage == currentState.toLanguage) {
+                currentState.fromLanguage
+            } else {
+                currentState.toLanguage
+            }
+            currentState.copy(
+                fromLanguage = newLanguage,
+                toLanguage = updatedToLanguage,
+                idiomOutput = null,
+                errorMessage = null
+            )
+        }
+    }
+
+    /**
+     * Updates the target ("to") language.
+     * Prevents "from" and "to" languages from being the same by swapping if necessary.
+     */
+    fun onToLanguageSelected(newLanguage: IdiomLanguage) {
+        _uiState.update { currentState ->
+            if (currentState.toLanguage == newLanguage) return@update currentState
+            val updatedFromLanguage = if (newLanguage == currentState.fromLanguage) {
+                currentState.toLanguage
+            } else {
+                currentState.fromLanguage
+            }
+            currentState.copy(
+                fromLanguage = updatedFromLanguage,
+                toLanguage = newLanguage,
+                idiomOutput = null,
+                errorMessage = null
+            )
+        }
+    }
+
+    /**
+     * Translates the source idiom to its culturally equivalent target idiom.
      */
     fun onTranslateClicked() {
-        val currentInput = _uiState.value.britishIdiomInput.trim()
+        val currentState = _uiState.value
+        val currentInput = currentState.idiomInput.trim()
         if (currentInput.isEmpty()) {
             _uiState.update {
-                it.copy(errorMessage = "Please enter a British idiom to translate.")
+                it.copy(errorMessage = "Please enter a ${currentState.fromLanguage.displayName} idiom to translate.")
             }
             return
         }
-        if (_uiState.value.isLoading) return
+        if (currentState.fromLanguage == currentState.toLanguage) {
+            _uiState.update {
+                it.copy(errorMessage = "Source and target languages must be different.")
+            }
+            return
+        }
+        if (currentState.isLoading) return
+
+        val fromLang = currentState.fromLanguage
+        val toLang = currentState.toLanguage
 
         _uiState.update {
             it.copy(
                 isLoading = true,
                 errorMessage = null,
-                brazilianIdiomOutput = null
+                idiomOutput = null
             )
         }
 
         viewModelScope.launch {
             try {
                 val prompt = """
-                    You are a bilingual cultural translation expert. Translate the input British English idiom to its closest culturally equivalent Brazilian Portuguese idiom - the expression Brazilians actually use to convey the exact same meaning, tone, and humor, not a literal word-for-word translation. Return the exact Brazilian Portuguese idiom as your response. 
+                    You are a bilingual cultural translation expert. Translate the input ${fromLang.displayName} idiom to its closest culturally equivalent ${toLang.displayName} idiom - the expression ${toLang.peopleName} actually use to convey the exact same meaning, tone, and humor, not a literal word-for-word translation. Return the exact ${toLang.displayName} idiom as your response. 
 
                     $currentInput
                 """.trimIndent()
@@ -76,7 +162,7 @@ class IdiomBridgeViewModel : ViewModel() {
                 if (!translatedText.isNullOrEmpty()) {
                     _uiState.update {
                         it.copy(
-                            brazilianIdiomOutput = translatedText,
+                            idiomOutput = translatedText,
                             isLoading = false,
                             errorMessage = null
                         )
@@ -100,4 +186,5 @@ class IdiomBridgeViewModel : ViewModel() {
         }
     }
 }
+
 

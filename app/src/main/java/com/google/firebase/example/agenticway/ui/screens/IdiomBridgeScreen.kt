@@ -1,6 +1,7 @@
 package com.google.firebase.example.agenticway.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -31,6 +34,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,6 +66,7 @@ import com.google.firebase.example.agenticway.ui.theme.TextSecondary
 import com.google.firebase.example.agenticway.ui.theme.TranslateButtonBackground
 import com.google.firebase.example.agenticway.ui.theme.TranslateButtonContent
 import com.google.firebase.example.agenticway.viewmodel.IdiomBridgeViewModel
+import com.google.firebase.example.agenticway.viewmodel.IdiomLanguage
 
 @Composable
 fun IdiomBridgeScreen(
@@ -93,20 +100,26 @@ fun IdiomBridgeScreen(
                     .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Input Card (British Idiom)
+                // Input Card (From Language Idiom)
                 InputIdiomCard(
-                    inputText = uiState.britishIdiomInput,
+                    fromLanguage = uiState.fromLanguage,
+                    toLanguage = uiState.toLanguage,
+                    onFromLanguageSelected = viewModel::onFromLanguageSelected,
+                    inputText = uiState.idiomInput,
                     isLoading = uiState.isLoading,
-                    onTextChanged = viewModel::onBritishIdiomChanged,
+                    onTextChanged = viewModel::onIdiomInputChanged,
                     onTranslateClick = viewModel::onTranslateClicked,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
                 )
 
-                // Output Card (Brazilian Idiom)
+                // Output Card (To Language Idiom)
                 OutputIdiomCard(
-                    outputText = uiState.brazilianIdiomOutput,
+                    toLanguage = uiState.toLanguage,
+                    fromLanguage = uiState.fromLanguage,
+                    onToLanguageSelected = viewModel::onToLanguageSelected,
+                    outputText = uiState.idiomOutput,
                     isLoading = uiState.isLoading,
                     errorMessage = uiState.errorMessage,
                     modifier = Modifier
@@ -154,10 +167,13 @@ fun IdiomBridgeHeader(modifier: Modifier = Modifier) {
 }
 
 /**
- * Upper Card where the user inputs the British idiom.
+ * Upper Card where the user selects the source language and inputs the idiom.
  */
 @Composable
 fun InputIdiomCard(
+    fromLanguage: IdiomLanguage,
+    toLanguage: IdiomLanguage,
+    onFromLanguageSelected: (IdiomLanguage) -> Unit,
     inputText: String,
     onTextChanged: (String) -> Unit,
     onTranslateClick: () -> Unit,
@@ -175,12 +191,14 @@ fun InputIdiomCard(
                 .fillMaxSize()
                 .padding(22.dp)
         ) {
-            // Tag Badge
-            LanguageBadge(
-                flagEmoji = "🇬🇧",
-                label = "BRITISH IDIOM",
+            // Dropdown Language Chip
+            LanguageDropdownBadge(
+                selectedLanguage = fromLanguage,
+                disabledLanguage = toLanguage,
+                onLanguageSelected = onFromLanguageSelected,
                 backgroundColor = BritishBadgeBackground,
-                textColor = BritishBadgeText
+                textColor = BritishBadgeText,
+                enabled = !isLoading
             )
 
             Spacer(modifier = Modifier.height(18.dp))
@@ -205,7 +223,7 @@ fun InputIdiomCard(
                     decorationBox = { innerTextField ->
                         if (inputText.isEmpty()) {
                             Text(
-                                text = "Type the British idiom",
+                                text = "Type the ${fromLanguage.displayName} idiom",
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = TextPrimary
@@ -231,7 +249,7 @@ fun InputIdiomCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "🇧🇷",
+                        text = toLanguage.flagEmoji,
                         fontSize = 16.sp
                     )
 
@@ -259,10 +277,13 @@ fun InputIdiomCard(
 }
 
 /**
- * Lower Card showing the placeholder state, loading state, error message, or translated Brazilian Portuguese idiom.
+ * Lower Card showing the target language dropdown, placeholder state, loading state, error message, or translated idiom.
  */
 @Composable
 fun OutputIdiomCard(
+    toLanguage: IdiomLanguage,
+    fromLanguage: IdiomLanguage,
+    onToLanguageSelected: (IdiomLanguage) -> Unit,
     outputText: String?,
     modifier: Modifier = Modifier,
     isLoading: Boolean = false,
@@ -279,12 +300,14 @@ fun OutputIdiomCard(
                 .fillMaxSize()
                 .padding(22.dp)
         ) {
-            // Tag Badge
-            LanguageBadge(
-                flagEmoji = "🇧🇷",
-                label = "BRAZILIAN IDIOM",
+            // Dropdown Language Chip
+            LanguageDropdownBadge(
+                selectedLanguage = toLanguage,
+                disabledLanguage = fromLanguage,
+                onLanguageSelected = onToLanguageSelected,
                 backgroundColor = BrazilianBadgeBackground,
-                textColor = BrazilianBadgeText
+                textColor = BrazilianBadgeText,
+                enabled = !isLoading
             )
 
             // Center Content (Loading, Error, Placeholder Empty State, or Result)
@@ -305,7 +328,7 @@ fun OutputIdiomCard(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Finding the Brazilian equivalent...",
+                                text = "Finding the ${toLanguage.displayName} equivalent...",
                                 fontSize = 16.sp,
                                 lineHeight = 23.sp,
                                 fontWeight = FontWeight.Normal,
@@ -349,7 +372,7 @@ fun OutputIdiomCard(
                             Spacer(modifier = Modifier.height(18.dp))
 
                             Text(
-                                text = "You'll see the Brazilian version of\nthis idiom here",
+                                text = "You'll see the ${toLanguage.displayName} version of\nthis idiom here",
                                 fontSize = 16.sp,
                                 lineHeight = 23.sp,
                                 fontWeight = FontWeight.Normal,
@@ -376,39 +399,90 @@ fun OutputIdiomCard(
 }
 
 /**
- * Pill-shaped tag displaying a flag emoji and uppercase language label.
+ * Pill-shaped dropdown chip displaying a flag emoji, uppercase language label, and dropdown menu
+ * for choosing between British English, Brazilian Portuguese, and Chilean Spanish.
  */
 @Composable
-fun LanguageBadge(
-    flagEmoji: String,
-    label: String,
+fun LanguageDropdownBadge(
+    selectedLanguage: IdiomLanguage,
+    disabledLanguage: IdiomLanguage,
+    onLanguageSelected: (IdiomLanguage) -> Unit,
     backgroundColor: Color,
     textColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(50),
-        color = backgroundColor
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-            verticalAlignment = Alignment.CenterVertically
+    var expanded by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        Surface(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .clickable(enabled = enabled) { expanded = true },
+            shape = RoundedCornerShape(50),
+            color = backgroundColor
         ) {
-            Text(
-                text = flagEmoji,
-                fontSize = 12.sp
-            )
+            Row(
+                modifier = Modifier.padding(start = 10.dp, end = 6.dp, top = 5.dp, bottom = 5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = selectedLanguage.flagEmoji,
+                    fontSize = 12.sp
+                )
 
-            Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
-            Text(
-                text = label,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.6.sp,
-                color = textColor
-            )
+                Text(
+                    text = selectedLanguage.badgeLabel,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.6.sp,
+                    color = textColor
+                )
+
+                Spacer(modifier = Modifier.width(2.dp))
+
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_arrow_drop_down),
+                    contentDescription = "Select language",
+                    tint = textColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.background(InputCardBackground)
+        ) {
+            IdiomLanguage.entries.forEach { language ->
+                val isOptionEnabled = language != disabledLanguage
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = language.flagEmoji,
+                                fontSize = 16.sp
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = language.displayName,
+                                fontSize = 14.sp,
+                                fontWeight = if (language == selectedLanguage) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isOptionEnabled) TextPrimary else TextSecondary.copy(alpha = 0.45f)
+                            )
+                        }
+                    },
+                    onClick = {
+                        expanded = false
+                        onLanguageSelected(language)
+                    },
+                    enabled = isOptionEnabled
+                )
+            }
         }
     }
 }
+
