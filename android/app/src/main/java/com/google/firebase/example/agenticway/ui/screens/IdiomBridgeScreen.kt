@@ -1,5 +1,6 @@
 package com.google.firebase.example.agenticway.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +30,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,13 +44,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import com.google.firebase.example.agenticway.R
 import com.google.firebase.example.agenticway.ui.theme.BrazilianBadgeBackground
 import com.google.firebase.example.agenticway.ui.theme.BrazilianBadgeText
@@ -65,13 +70,16 @@ import com.google.firebase.example.agenticway.ui.theme.TextPrimary
 import com.google.firebase.example.agenticway.ui.theme.TextSecondary
 import com.google.firebase.example.agenticway.ui.theme.TranslateButtonBackground
 import com.google.firebase.example.agenticway.ui.theme.TranslateButtonContent
+import com.google.firebase.example.agenticway.viewmodel.AuthUser
 import com.google.firebase.example.agenticway.viewmodel.IdiomBridgeViewModel
 import com.google.firebase.example.agenticway.viewmodel.IdiomLanguage
 
 @Composable
 fun IdiomBridgeScreen(
     viewModel: IdiomBridgeViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    user: AuthUser? = null,
+    onSignOutClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -91,6 +99,17 @@ fun IdiomBridgeScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 12.dp)
             )
+
+            // Authenticated User Profile Bar
+            if (user != null) {
+                UserProfileBar(
+                    user = user,
+                    onSignOutClick = onSignOutClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
+                )
+            }
 
             // Cards Column
             Column(
@@ -163,6 +182,90 @@ fun IdiomBridgeHeader(modifier: Modifier = Modifier) {
             fontWeight = FontWeight.Bold,
             color = TextPrimary
         )
+    }
+}
+
+/**
+ * Compact bar displaying the signed-in user's Google profile photo, name, and Sign Out button.
+ */
+@Composable
+fun UserProfileBar(
+    user: AuthUser,
+    onSignOutClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val displayName = user.displayName?.takeIf { it.isNotBlank() }
+        ?: user.email?.takeIf { it.isNotBlank() }
+        ?: "Signed-in User"
+
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = InputCardBackground),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(HeaderIconBackground),
+                contentAlignment = Alignment.Center
+            ) {
+                val initial = displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+                Text(
+                    text = initial,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = HeaderIconTint
+                )
+                if (!user.photoUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = user.photoUrl,
+                        contentDescription = "$displayName profile photo",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Text(
+                text = displayName,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            OutlinedButton(
+                onClick = onSignOutClick,
+                shape = RoundedCornerShape(50),
+                border = BorderStroke(1.dp, Color(0xFFD0DCE5)),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = TextPrimary
+                ),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = "Sign Out",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
     }
 }
 
