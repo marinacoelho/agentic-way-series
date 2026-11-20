@@ -400,7 +400,7 @@ fun OutputIdiomCard(
 
 /**
  * Pill-shaped dropdown chip displaying a flag emoji, uppercase language label, and dropdown menu
- * for choosing between British English, Brazilian Portuguese, and Chilean Spanish.
+ * for choosing between British English, Brazilian Portuguese, Chilean Spanish, and German.
  */
 @Composable
 fun LanguageDropdownBadge(
